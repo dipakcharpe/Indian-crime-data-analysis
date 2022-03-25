@@ -1,0 +1,211 @@
+--1.	What is the major reason people being kidnapped in each and every state?
+
+SELECT mainq.Area_Name ,substr(mainq.Sub_Group_Name,4,15) as Sub_Group,
+		(mainq.Grand_Total) FROM
+(Select DISTINCT (Area_Name) , (Sub_Group_Name),
+		sum (K_A_Grand_Total) as Grand_Total
+ FROM Specific_Reason_Of_Kidnapping
+ WHERE Sub_Group_Name NOT like '%Total%'
+ GROUP by Area_Name, Sub_Group_Name
+ order by sum (K_A_Grand_Total) DESC 
+ ) as  mainq where Area_Name is NOT NULL 
+ GROUP by mainq.Area_Name 
+ order BY mainq.Grand_total DESC ;
+--------------------------------------
+
+--que2.Offenders relation to the rape victim
+
+SELECT "STATE_UT" ,
+		sum ("CasesInWhichOffendersWereOtherKnownPersons") AS Culprit_is_Unknown_Person,
+		sum("CasesInWhichOffendersWereKnownToTheVictims") as Culprit_is_Known_Person,
+		sum ("CasesInWhichOffendersWereNeighbours") as Culprit_Is_Neighbours,		
+		sum ("CasesInWhichOffendersWereRelatives") as Culprit_is_Relatives,
+		sum ("CasesInWhichOffendersWereParents/CloseFamilyMembers") as Culprit_is_Parent_or_CloseRelative
+FROM Offenders_relation_to_rape_victim 
+GROUP by "STATE_UT";
+
+--------------------------------------------
+
+---que3.Juveniles family background, education and economic setup --
+
+select T1.Area_Name, T1.Year , substr (T1.Sub_Group_Name,3,20), 
+		(sum(T1.Economic_Set_up_Annual_Income_upto_Rs_25000)/1000) as "Income<25k (k)" ,
+		(sum(T1.Economic_Set_up_Annual_Income_250001_to_50000)/1000) as "Income>25k<50k (k)",
+		(sum(T1.Economic_Set_up_Middle_income_from_50001_to_100000)/1000) as "Income>50k<1L (k)" ,
+		(sum(T1.Economic_Set_up_Middle_income_from_100001_to_200000)/1000) as "Income>1L<2L (k)" ,
+		(sum(T1.Economic_Set_up_Upper_middle_income_from_200001_to_300000)/1000) as "Income>2L<3L (k)" ,
+		(sum(T1.Economic_Set_up_Upper_income_above_Rs_300000))/1000 as "Income>3L (k)" ,
+		substr (T2.Sub_Group_Name, 3, 10),
+		(sum(T2.Education_Illiterate)/1000) AS "Illiterate (k)" ,
+		(sum (T2.Education_Upto_primary)/1000) AS "Edu<=Prim (k)" ,
+		(sum(T2.Education_Above_Primary_but_below_Matric_or_Higher_Secondary)/1000) as "Edu>prim<High_Sec (k)" ,
+		(sum ( "T2.Education_Matric_or_Higher_Secondary_&_above" )/1000) as "Edu>high_Sec (k)" ,
+		substr (T3.Sub_Group_Name, 3,25),
+		round(sum(T3.Family_back_ground_Homeless)/100000) as "Homeless (k) ",
+		(sum(T3.Family_back_ground_Living_with_guardian)/1000) as "Living_With_Guardian (k)" ,
+		(sum(T3.Family_back_ground_Living_with_parents))/1000 as "Living_With_Parents(k)"
+FROM Juveniles_arrested_Economic_setup as T1
+INNER JOIN  Juveniles_arrested_Education as T2
+on T1.Area_Name = T2.Area_Name
+INNER JOIN Juveniles_arrested_Family_background as T3
+on T2.Area_Name=T3.Area_Name
+GROUP by T1.Area_Name , T1.Year;
+
+-------------------------------------------------------		
+		
+--que4.Which state has more crime against children and women?
+
+SELECT t1.STATE_UT , (t1.Total_Crime_Against_Childern) , (t2.Total_Crimes_on_Women)
+FROM
+
+(SELECT STATE_UT , 
+		sum (Total_Crime_against_children)
+		As Total_Crime_Against_Childern
+FROM District_wise_crimes_committed_against_children_2001_2013
+WHERE DISTRICT NOT LIKE '%TOTAL%'
+GROUP BY STATE_UT 
+) as t1	
+
+INNER JOIN
+
+(SELECT "STATE_UT" , 
+		sum(KidnappingandAbduction + DowryDeaths +
+		Assaultonwomenwithintenttooutragehermodesty + InsulttomodestyofWomen +
+        CrueltybyHusbandorhisRelatives + ImportationofGirls + Rape )as Total_Crimes_on_Women
+FROM District_wise_crimes_committed_against_women_2001_2013
+ WHERE DISTRICT NOT LIKE '%TOTAL%' 
+ GROUP BY "STATE_UT" 
+)as t2
+ on t1.STATE_UT = t2.STATE_UT
+GROUP by t1.STATE_UT  ORDER BY Total_Crime_Against_Childern DESC
+
+----------------------------------------------------------------------------------------
+
+--que5.Age group wise murder victim
+
+ SELECT Area_Name, substr (Sub_Group_Name , 3,20) as Gender , Sum( Victims_Upto_10_Yrs) as "Victims<=10Yrs" ,
+        sum ( Victims_Upto_10_15_Yrs) as "Victims>10<=15Yrs" ,
+		Sum (Victims_Upto_15_18_Yrs) as "Victims>15<=18Yrs" ,
+		Sum ( Victims_Upto_18_30_Yrs) as "Victims>18<=30Yrs" ,
+		sum (Victims_Upto_30_50_Yrs) as "Victims>30<=50" ,
+		sum (Victims_Above_50_Yrs) as "Victims>50yrs" ,
+		sum (Victims_Total) as Total_Victims
+From "Murdar_Victime_By_Age-and_Sex" WHERE Area_Name is NOT NULL 
+and Sub_Group_Name NOT like '%Total%'
+GROUP by Area_Name , Gender
+ 
+--------------------------------------------------------------
+
+-- que6.Crime by place of occurrence
+
+SELECT  t1.STATE_UT ,sum(t1.residential_crime + t2.s1) as residential_crime,
+					sum (t1.highway_crime + t2.s2) as highway_crime,
+					sum (t1.railway_crime+t2.s5) as railway_crime,
+					sum (t1.riverandsea_crime + t2.s3) as river_and_sea_crime ,
+					sum (t1.bank_crime + t2.s6) as bank_crime,
+					sum (t1.commercialestablishment_crime + t2.s7) as commercial_Esctablishment,
+					 (t2.atm_crime) as ATM_crime ,
+					 (t2.religiousplaces_crime) as Religious_Crime,
+					 sum (t1.otherplaces_crime + s4) As other_places_crime
+from 
+(select STATE_UT ,
+SUM(residentialpremises_Burglary + residentialpremises_Dacoity + residentialpremises_Robbery + residentialpremises_Theft) as residential_crime,
+sum(HIGHWAYS_Burglary + HIGHWAYS_Dacoity + HIGHWAYS_Robbery + HIGHWAYS_Theft) as highway_crime,
+sum(RIVER_anD_SEA_Burglary + RIVER_and_SEA_Dacoity + RIVER_and_SEA_Robbery + RIVER_and_SEA_Theft) as riverandsea_crime,
+sum(RAILWAYS_Burglary + RAILWAYS_Dacoity + RAILWAYS_Robbery + RAILWAYS_Theft) as railway_crime,
+sum(BANKS_Burglary + BANKS_Dacoity + BANKS_Robbery + BANKS_Theft ) as bank_crime,
+sum(COMMERCIAL_ESTABLISHMENTS_Burglary + COMMERCIAL_ESTABLISHMENTS_Dacoity + COMMERCIAL_ESTABLISHMENTS_Robbery + COMMERCIAL_ESTABLISHMENTS_Theft)
+as commercialestablishment_crime,
+sum(OTHER_PLACES_BurglarY + OTHER_PLACES_Dacoity + OTHER_PLACES_Robbery + OTHER_PLACES_Theft) as otherplaces_crime
+from Crime_by_place_of_occurrence_2001_2013 WHERE STATE_UT NOT like '%TOTAL%'
+GROUP by STATE_UT 
+) as t1
+ 
+ INNER JOIN
+
+(SELECT States_UTs,
+		sum(Residence_Burglary_Casesreported + Residence_Dacoity_Casesreported + 
+		Residence_Robbery_Casesreported + Residence_Theft_Casesreported) as s1 ,
+		sum (Highways_Burglary_Casesreported + Highways_Dacoity_Casesreported +
+		Highways_Robbery_Casesreported + Highways_Theft_Casesreported) as s2 ,
+		sum (RiverOrSea_Burglary_Casesreported + RiverOrSea_Dacoity_Casesreported + 
+		RiverOrSea_Robbery_Casesreported + RiverOrSea_Theft_Casesreported ) s3,
+		sum (OtherPlaces_Burglary_Casesreported + OtherPlaces_Dacoity_Casesreported + 
+		OtherPlaces_Robbery_Casesreported + OtherPlaces_Theft_Casesreported) s4 ,
+		sum (Railways_Burglary_Casesreported + Railways_Dacoity_Casesreported +
+		Railways_Robbery_Casesreported + Railways_Theft_Casesreported) as s5,
+		sum (Bank_Burglary_Casesreported + Bank_Dacoity_Casesreported + 
+		Bank_Robbery_Casesreported + Bank_Theft_Casesreported) as s6,
+		Sum (CommEst_Burglary_Casesreported + CommEst_Dacoity_Casesreported + 
+		CommEst_Robbery_Casesreported + CommEst_Theft_Casesreported) as s7,
+		sum(ATM_Burglary_Casesreported + ATM_Dacoity_Casesreported + 
+		ATM_Robbery_Casesreported + ATM_Theft_Casesreported) as atm_crime,
+		sum(ReligiousPlaces_Burglary_Casesreported + ReligiousPlaces_Dacoity_Casesreported + 
+		ReligiousPlaces_Robbery_Casesreported + ReligiousPlaces_Theft_Casesreported)
+		as religiousplaces_crime
+FROM Crime_by_place_of_occurrence_2014 WHERE States_UTs NOT like '%TOTAL%'
+GROUP by States_UTs 
+) as t2
+
+ ON
+LOWER(t1.STATE_UT) = lower(t2.States_UTs) 
+group by t1.STATE_UT;
+
+--------------------------------------------------------------------------------------------------
+
+--7.Anti corruption cases vs arrests.
+
+SELECT t1.area_name , sum (t1.AC02_No_of_cases_registered_during_the_year) as total_cases_registerd ,
+		sum (t2.ACA02_No_of_persons_arrested_during_the_year) as Total_arrested
+from Anti_corruprion_cases as t1
+inner join 
+Anti_corruption_arrests as t2
+on t1.area_name = t2.area_name
+GROUP by t1.area_name ORDER  BY (sum(t1.AC02_No_of_cases_registered_during_the_year)) DESC
+
+--8.Which state has more number of complaints against police?
+
+selecT area_name  , t1.Total_Complaint_Recived , t2.Total_Crime
+FROM
+(SELECT Area_Name, year , sum (Complaints_Received_or_Alleged) As Total_Complaint_Recived
+from Compaint_against_Police
+Group by area_name 
+) as t1
+
+INNER JOIN
+
+(SELECT STATE_UT, year, sum (TOTALIPCCRIMES) as Total_Crime
+FROM District_wise_crimes_committed_IPC_2001_2012 
+where  DISTRICT NOT like '%Total%'
+GROUP by STATE_UT
+)as t2
+
+ON t1.area_name =t2.STATE_UT
+group by t1.area_name;
+
+---------------------------------------------------------------------------------------
+
+--9.Which state is the safest for foreigners?
+ 
+SELECT t1.STATE_UT ,round (t1.Total_Crime_2001/t2.Year2001inTH) as crime_rate2001perTH,
+		round (t3.Total_Crime_2011/t2.Year2011inTH) as crime_rate2011perTH
+from
+(SELECT STATE_UT, year, sum (TOTALIPCCRIMES) as Total_Crime_2001
+FROM District_wise_crimes_committed_IPC_2001_2012 
+where year = 2001 and DISTRICT NOT like '%Total%'
+GROUP by STATE_UT
+) as t1
+INNER JOIN
+(select State_UnionTerritory , (Year_2001) as Year2001inTH , Year_2011 as Year2011inTH
+FROM indian_population_data_resurve_bank1
+) AS t2
+on t1.STATE_UT = t2.State_UnionTerritory
+INNER JOIN
+(SELECT STATE_UT, year, sum (TOTALIPCCRIMES) as Total_Crime_2011
+FROM District_wise_crimes_committed_IPC_2001_2012 
+where year = 2011 and DISTRICT not like '%total%'
+GROUP by STATE_UT
+) as t3
+on t2.State_UnionTerritory = t3.STATE_UT
+group by t1.STATE_UT
+ORDER by crime_rate2001perTH DESC , crime_rate2011perTH DESC ;
